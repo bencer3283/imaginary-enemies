@@ -23,7 +23,8 @@ logger = logging.getLogger("gpio-websocket")
 warnings.filterwarnings("ignore", module="gpiozero")
 
 # Configuration from environment variables
-BUTTON_PIN = int(os.getenv("GPIO_PIN", "17"))
+BUTTON_PIN = int(os.getenv("GPIO_PIN", os.getenv("BUTTON_PIN", "17")))
+OUTPUT_PIN = int(os.getenv("OUTPUT_PIN", os.getenv("GPIO_OUTPUT_PIN", "27")))
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 BOUNCE_TIME = float(os.getenv("BOUNCE_TIME", "0.05"))
@@ -70,14 +71,15 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 button_instance: Optional[object] = None
+output_device_instance: Optional[object] = None
 is_mock_mode: bool = False
 
 
 def setup_gpio():
-    """Initializes the gpiozero Button, falling back to MockFactory if hardware is unavailable."""
-    global button_instance, is_mock_mode
+    """Initializes the gpiozero Button (input) and DigitalOutputDevice (output), falling back to MockFactory if hardware is unavailable."""
+    global button_instance, output_device_instance, is_mock_mode
 
-    from gpiozero import Button, Device
+    from gpiozero import Button, DigitalOutputDevice, Device
 
     if FORCE_MOCK:
         from gpiozero.pins.mock import MockFactory
@@ -95,14 +97,26 @@ def setup_gpio():
             is_mock_mode = True
 
     try:
+        # Initialize Output GPIO pin (defaults to GPIO 27, initialized to LOW)
+        output_device = DigitalOutputDevice(OUTPUT_PIN, active_high=True, initial_value=False)
+        output_device.off()  # Explicitly ensure low at start
+        output_device_instance = output_device
+        logger.info(f"GPIO Output initialized on pin {OUTPUT_PIN} (state=LOW, mock={is_mock_mode})")
+
+        # Initialize Button input pin
         button = Button(BUTTON_PIN, pull_up=PULL_UP, bounce_time=BOUNCE_TIME)
 
         def on_pressed():
-            logger.info(f"GPIO Pin {BUTTON_PIN} PRESSED")
+            logger.info(f"GPIO Pin {BUTTON_PIN} PRESSED -> Setting GPIO {OUTPUT_PIN} HIGH")
+            if output_device_instance:
+                output_device_instance.on()
+
             payload = {
                 "event": "button_press",
                 "action": "pressed",
                 "pin": BUTTON_PIN,
+                "output_pin": OUTPUT_PIN,
+                "output_state": "high",
                 "timestamp": time.time(),
                 "is_mock": is_mock_mode,
             }
@@ -110,11 +124,16 @@ def setup_gpio():
                 asyncio.run_coroutine_threadsafe(manager.broadcast(payload), main_event_loop)
 
         def on_released():
-            logger.info(f"GPIO Pin {BUTTON_PIN} RELEASED")
+            logger.info(f"GPIO Pin {BUTTON_PIN} RELEASED -> Setting GPIO {OUTPUT_PIN} LOW")
+            if output_device_instance:
+                output_device_instance.off()
+
             payload = {
                 "event": "button_release",
                 "action": "released",
                 "pin": BUTTON_PIN,
+                "output_pin": OUTPUT_PIN,
+                "output_state": "low",
                 "timestamp": time.time(),
                 "is_mock": is_mock_mode,
             }
@@ -126,7 +145,7 @@ def setup_gpio():
         button_instance = button
         logger.info(f"GPIO Button listening on pin {BUTTON_PIN} (pull_up={PULL_UP}, bounce_time={BOUNCE_TIME}s, mock={is_mock_mode})")
     except Exception as e:
-        logger.error(f"Failed to initialize GPIO Button on pin {BUTTON_PIN}: {e}")
+        logger.error(f"Failed to initialize GPIO devices: {e}")
         raise
 
 
@@ -136,6 +155,12 @@ async def lifespan(app: FastAPI):
     main_event_loop = asyncio.get_running_loop()
     setup_gpio()
     yield
+    if output_device_instance:
+        try:
+            output_device_instance.off()
+            output_device_instance.close()
+        except Exception:
+            pass
     if button_instance:
         try:
             button_instance.close()
@@ -145,7 +170,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="GPIO WebSocket Server",
-    description="FastAPI WebSocket bridge emitting events when GPIO buttons are pressed",
+    description="FastAPI WebSocket bridge emitting events and controlling GPIO output",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -166,7 +191,8 @@ async def root():
     return {
         "status": "online",
         "service": "gpio-websocket",
-        "pin": BUTTON_PIN,
+        "button_pin": BUTTON_PIN,
+        "output_pin": OUTPUT_PIN,
         "mock_mode": is_mock_mode,
         "active_clients": len(manager.active_connections),
         "endpoints": {
@@ -184,26 +210,37 @@ class SimulatePayload(BaseModel):
 
 @app.post("/simulate-press")
 async def simulate_press(payload: Optional[SimulatePayload] = None):
-    """Simulate a button press/release event (useful for development & testing without physical buttons)."""
+    """Simulate a button press/release event and toggle the output pin accordingly."""
     action = payload.action if payload and payload.action else "pressed"
     pin = payload.pin if payload and payload.pin is not None else BUTTON_PIN
 
-    event_name = "button_press" if action == "pressed" else "button_release"
+    if action == "pressed":
+        if output_device_instance:
+            output_device_instance.on()
+        output_state = "high"
+        event_name = "button_press"
+    else:
+        if output_device_instance:
+            output_device_instance.off()
+        output_state = "low"
+        event_name = "button_release"
+
     event_data = {
         "event": event_name,
         "action": action,
         "pin": pin,
+        "output_pin": OUTPUT_PIN,
+        "output_state": output_state,
         "timestamp": time.time(),
         "is_mock": is_mock_mode,
         "simulated": True,
     }
 
-    # If in mock mode, trigger the mock pin state if button instance exists
+    # If in mock mode, trigger the mock button pin state if button instance exists
     if is_mock_mode and button_instance and hasattr(button_instance, "pin"):
         try:
             if hasattr(button_instance.pin, "drive_low") and hasattr(button_instance.pin, "drive_high"):
                 if action == "pressed":
-                    # For pull_up=True, active low
                     if PULL_UP:
                         button_instance.pin.drive_low()
                     else:
@@ -229,7 +266,8 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.send_json({
         "event": "connected",
         "message": "Connected to GPIO WebSocket Server",
-        "pin": BUTTON_PIN,
+        "button_pin": BUTTON_PIN,
+        "output_pin": OUTPUT_PIN,
         "timestamp": time.time(),
     })
 

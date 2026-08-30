@@ -14,24 +14,24 @@ export default function Blocks() {
   const displayCountries = ['Mexico', ...otherCountries].slice(0, 4)
 
   return (
-    <VStack p="5vh" minH={"100dvh"} minW={'100dvw'} align={"stretch"} gap={'2vh'}>
-      <Box h='max' flex={1} bg='gray.800' display="flex" alignItems={'center'} justifyContent={'center'}>
-        <Text fontSize={"80px"} color={'white'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
+    <VStack p="5vh" minH={"100dvh"} minW={'100dvw'} align={"stretch"} gap={'2vh'} bg="black">
+      <Box h='max' flex={1} bg='white' display="flex" alignItems={'center'} justifyContent={'center'}>
+        <Text fontSize={"80px"} color={'black'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
           {displayCountries[0] || 'Mexico'}
         </Text>
       </Box>
-      <Box h='max' flex={1} bg='gray.200' display="flex" alignItems={'center'} justifyContent={'center'}>
-        <Text fontSize={"80px"} color={'gray.800'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
+      <Box h='max' flex={1} border="6px solid" borderColor="white" display="flex" alignItems={'center'} justifyContent={'center'}>
+        <Text fontSize={"80px"} color={'white'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
           {displayCountries[1] || ''}
         </Text>
       </Box>
-      <Box h='max' flex={1} bg='gray.200' display="flex" alignItems={'center'} justifyContent={'center'}>
-        <Text fontSize={"80px"} color={'gray.800'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
+      <Box h='max' flex={1} border="6px solid" borderColor="white" display="flex" alignItems={'center'} justifyContent={'center'}>
+        <Text fontSize={"80px"} color={'white'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
           {displayCountries[2] || ''}
         </Text>
       </Box>
-      <Box h='max' flex={1} bg='gray.200' display="flex" alignItems={'center'} justifyContent={'center'}>
-        <Text fontSize={"80px"} color={'gray.800'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
+      <Box h='max' flex={1} border="6px solid" borderColor="white" display="flex" alignItems={'center'} justifyContent={'center'}>
+        <Text fontSize={"80px"} color={'white'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
           {displayCountries[3] || ''}
         </Text>
       </Box>

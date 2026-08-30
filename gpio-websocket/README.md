@@ -36,7 +36,8 @@ You can customize the GPIO pin, port, and behavior using environment variables:
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `GPIO_PIN` | `17` | BCM pin number the physical button is connected to |
+| `GPIO_PIN` / `BUTTON_PIN` | `17` | BCM pin number the physical button input is connected to |
+| `OUTPUT_PIN` | `27` | BCM pin number toggled as output (HIGH on press, LOW on release & start) |
 | `HOST` | `0.0.0.0` | Host interface to bind server to |
 | `PORT` | `8080` | Port to run the server on |
 | `BOUNCE_TIME` | `0.05` | Debounce time in seconds |
@@ -45,7 +46,7 @@ You can customize the GPIO pin, port, and behavior using environment variables:
 
 Example:
 ```bash
-GPIO_PIN=22 PORT=8080 python server.py
+GPIO_PIN=17 OUTPUT_PIN=27 PORT=8080 python server.py
 ```
 
 > **Note**: When executed on a non-Raspberry Pi machine (or without hardware GPIO access), the server automatically falls back to `gpiozero`'s `MockFactory` so that the WebSocket server remains fully functional for frontend development and testing.
