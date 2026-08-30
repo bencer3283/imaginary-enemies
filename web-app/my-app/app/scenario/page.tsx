@@ -11,10 +11,10 @@ export default function Scenario() {
 
   return (
     <VStack p="5vh" minH={"100dvh"} minW={'100dvw'} align={"stretch"} gap={'2vh'}>
-      <Text fontSize={"80px"} color={'gray.800'} textTransform={'capitalize'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
+      <Text fontSize={"64px"} color={'gray.800'} textTransform={'capitalize'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
         {headline}
       </Text>
-      <Text fontSize={"48px"} color={'gray.800'} fontFamily='var(--font-jetbrains-mono)' fontWeight={300}>
+      <Text fontSize={"38px"} color={'gray.800'} fontFamily='var(--font-jetbrains-mono)' fontWeight={300}>
         {body}
       </Text>
     </VStack>

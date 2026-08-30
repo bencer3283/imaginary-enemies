@@ -25,7 +25,7 @@ python server.py
 
 Or using `uvicorn`:
 ```bash
-uvicorn server:app --host 0.0.0.0 --port 8000
+uvicorn server:app --host 0.0.0.0 --port 8080
 ```
 
 ---
@@ -38,7 +38,7 @@ You can customize the GPIO pin, port, and behavior using environment variables:
 | :--- | :--- | :--- |
 | `GPIO_PIN` | `17` | BCM pin number the physical button is connected to |
 | `HOST` | `0.0.0.0` | Host interface to bind server to |
-| `PORT` | `8000` | Port to run the server on |
+| `PORT` | `8080` | Port to run the server on |
 | `BOUNCE_TIME` | `0.05` | Debounce time in seconds |
 | `PULL_UP` | `true` | Set to `true` to use internal pull-up resistor (active LOW) |
 | `MOCK_GPIO` | `false` | Force mock mode for simulation/testing without hardware |
@@ -54,9 +54,9 @@ GPIO_PIN=22 PORT=8080 python server.py
 
 ## Endpoints
 
-- **`ws://localhost:8000/ws`**: WebSocket endpoint for frontend clients.
-- **`GET http://localhost:8000/`**: Server status, active client count, and pin info.
-- **`POST http://localhost:8000/simulate-press`**: Trigger a simulated button press event without physical hardware.
+- **`ws://localhost:8080/ws`**: WebSocket endpoint for frontend clients.
+- **`GET http://localhost:8080/`**: Server status, active client count, and pin info.
+- **`POST http://localhost:8080/simulate-press`**: Trigger a simulated button press event without physical hardware.
 
 ---
 
@@ -66,19 +66,19 @@ You can test WebSocket event broadcasting directly from your terminal using `cur
 
 ### 1. Simple Press (Default Pin)
 ```bash
-curl -X POST http://localhost:8000/simulate-press
+curl -X POST http://localhost:8080/simulate-press
 ```
 
 ### 2. Press with Explicit Pin & Action
 ```bash
-curl -X POST http://localhost:8000/simulate-press \
+curl -X POST http://localhost:8080/simulate-press \
   -H "Content-Type: application/json" \
   -d '{"action": "pressed", "pin": 17}'
 ```
 
 ### 3. Simulate Button Release
 ```bash
-curl -X POST http://localhost:8000/simulate-press \
+curl -X POST http://localhost:8080/simulate-press \
   -H "Content-Type: application/json" \
   -d '{"action": "released", "pin": 17}'
 ```
@@ -137,7 +137,7 @@ You can listen to button events in your Next.js application using a simple `useE
 
 import { useEffect, useState } from 'react';
 
-export function useGpioButton(wsUrl = 'ws://localhost:8000/ws') {
+export function useGpioButton(wsUrl = 'ws://localhost:8080/ws') {
   const [lastEvent, setLastEvent] = useState<any>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
