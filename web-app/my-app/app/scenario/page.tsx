@@ -34,7 +34,7 @@ export default function Scenario() {
         }
         videoRef.current.pause()
       }
-    }, 1400)
+    }, 2000)
 
     const timerToScenario = setTimeout(() => {
       setDisplayedScenario(currentScenario)
@@ -44,7 +44,7 @@ export default function Scenario() {
       if (videoRef.current) {
         videoRef.current.pause()
       }
-    }, 2600)
+    }, 4000)
 
     return () => {
       clearTimeout(timer)

@@ -38,7 +38,7 @@ export default function Blocks() {
       if (videoRef.current) {
         videoRef.current.pause()
       }
-    }, 1200)
+    }, 2000)
 
     return () => {
       clearTimeout(timer)
@@ -71,24 +71,24 @@ export default function Blocks() {
         />
       </Box>
 
-      <VStack p="5vh" minH={"100dvh"} minW={'100dvw'} align={"stretch"} gap={'2vh'} bg="black">
-        <Box h='max' flex={1} bg='white' display="flex" alignItems={'center'} justifyContent={'center'}>
-          <Text fontSize={"80px"} color={'black'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
+      <VStack p="5vh" h="100dvh" minH="100dvh" minW="100dvw" align="stretch" gap="2vh" bg="black">
+        <Box flex={1} minH={0} bg="white" display="flex" alignItems="center" justifyContent="center">
+          <Text fontSize="80px" color="black" textTransform="uppercase" fontFamily="var(--font-jetbrains-mono)" fontWeight={700}>
             {displayCountries[0] || 'Mexico'}
           </Text>
         </Box>
-        <Box h='max' flex={1} border="3px solid" borderColor="white" display="flex" alignItems={'center'} justifyContent={'center'}>
-          <Text maxWidth={'50vw'} fontSize={"80px"} color={'white'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
+        <Box flex={1} minH={0} border="3px solid" borderColor="white" display="flex" alignItems="center" justifyContent="center">
+          <Text textAlign={'center'} maxWidth="50vw" fontSize="80px" color="white" textTransform="uppercase" fontFamily="var(--font-jetbrains-mono)" fontWeight={700}>
             {displayCountries[1] || ''}
           </Text>
         </Box>
-        <Box h='max' flex={1} border="3px solid" borderColor="white" display="flex" alignItems={'center'} justifyContent={'center'}>
-          <Text maxWidth={'50vw'} fontSize={"80px"} color={'white'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
+        <Box flex={1} minH={0} border="3px solid" borderColor="white" display="flex" alignItems="center" justifyContent="center">
+          <Text textAlign={'center'} maxWidth="50vw" fontSize="80px" color="white" textTransform="uppercase" fontFamily="var(--font-jetbrains-mono)" fontWeight={700}>
             {displayCountries[2] || ''}
           </Text>
         </Box>
-        <Box h='max' flex={1} border="3px solid" borderColor="white" display="flex" alignItems={'center'} justifyContent={'center'}>
-          <Text maxWidth={'50vw'} fontSize={"80px"} color={'white'} textTransform={'uppercase'} fontFamily='var(--font-jetbrains-mono)' fontWeight={700}>
+        <Box flex={1} minH={0} border="3px solid" borderColor="white" display="flex" alignItems="center" justifyContent="center">
+          <Text textAlign={'center'} maxWidth="50vw" fontSize="80px" color="white" textTransform="uppercase" fontFamily="var(--font-jetbrains-mono)" fontWeight={700}>
             {displayCountries[3] || ''}
           </Text>
         </Box>
