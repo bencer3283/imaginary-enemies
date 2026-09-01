@@ -25,6 +25,9 @@ warnings.filterwarnings("ignore", module="gpiozero")
 # Configuration from environment variables
 BUTTON_PIN = int(os.getenv("GPIO_PIN", os.getenv("BUTTON_PIN", "17")))
 OUTPUT_PIN = int(os.getenv("OUTPUT_PIN", os.getenv("GPIO_OUTPUT_PIN", "27")))
+OUTPUT_DELAY = float(os.getenv("OUTPUT_DELAY", "3.0"))
+OUTPUT_DURATION = float(os.getenv("OUTPUT_DURATION", "1.0"))
+BLOCKOUT_TIME = float(os.getenv("BLOCKOUT_TIME", os.getenv("COOLDOWN_TIME", "10.0")))
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 BOUNCE_TIME = float(os.getenv("BOUNCE_TIME", "0.05"))
@@ -33,6 +36,8 @@ FORCE_MOCK = os.getenv("MOCK_GPIO", "false").lower() in ("true", "1", "yes")
 
 # Global event loop reference for threadsafe coroutine scheduling
 main_event_loop: Optional[asyncio.AbstractEventLoop] = None
+delayed_on_task: Optional[asyncio.Task] = None
+last_press_time: float = 0.0
 
 
 class ConnectionManager:
@@ -75,9 +80,47 @@ output_device_instance: Optional[object] = None
 is_mock_mode: bool = False
 
 
+async def _delayed_turn_on(delay: float, duration: float = OUTPUT_DURATION):
+    """Waits for specified delay before raising output pin to HIGH, then automatically sets it LOW after duration."""
+    try:
+        logger.info(f"Output GPIO {OUTPUT_PIN} turn-on scheduled in {delay}s for {duration}s duration...")
+        await asyncio.sleep(delay)
+        logger.info(f"Setting Output GPIO {OUTPUT_PIN} HIGH (after {delay}s delay)")
+        if output_device_instance:
+            output_device_instance.on()
+
+        await asyncio.sleep(duration)
+        logger.info(f"Setting Output GPIO {OUTPUT_PIN} LOW (automatically after {duration}s on duration)")
+        if output_device_instance:
+            output_device_instance.off()
+    except asyncio.CancelledError:
+        logger.debug(f"Delayed output task for GPIO {OUTPUT_PIN} cancelled.")
+        if output_device_instance:
+            output_device_instance.off()
+
+
+def trigger_output_on():
+    """Cancels any existing delayed task and schedules delayed turn-on with automatic shutoff."""
+    global delayed_on_task
+    if delayed_on_task and not delayed_on_task.done():
+        delayed_on_task.cancel()
+    if main_event_loop and main_event_loop.is_running():
+        delayed_on_task = main_event_loop.create_task(_delayed_turn_on(OUTPUT_DELAY, OUTPUT_DURATION))
+
+
+def trigger_output_off():
+    """Cancels any pending delayed turn-on and immediately sets output pin LOW."""
+    global delayed_on_task
+    if delayed_on_task and not delayed_on_task.done():
+        delayed_on_task.cancel()
+    logger.info(f"Setting Output GPIO {OUTPUT_PIN} LOW")
+    if output_device_instance:
+        output_device_instance.off()
+
+
 def setup_gpio():
     """Initializes the gpiozero Button (input) and DigitalOutputDevice (output), falling back to MockFactory if hardware is unavailable."""
-    global button_instance, output_device_instance, is_mock_mode
+    global button_instance, output_device_instance, is_mock_mode, last_press_time
 
     from gpiozero import Button, DigitalOutputDevice, Device
 
@@ -101,39 +144,49 @@ def setup_gpio():
         output_device = DigitalOutputDevice(OUTPUT_PIN, active_high=True, initial_value=False)
         output_device.off()  # Explicitly ensure low at start
         output_device_instance = output_device
-        logger.info(f"GPIO Output initialized on pin {OUTPUT_PIN} (state=LOW, mock={is_mock_mode})")
+        logger.info(f"GPIO Output initialized on pin {OUTPUT_PIN} (state=LOW, delay={OUTPUT_DELAY}s, duration={OUTPUT_DURATION}s, blockout={BLOCKOUT_TIME}s, mock={is_mock_mode})")
 
         # Initialize Button input pin
         button = Button(BUTTON_PIN, pull_up=PULL_UP, bounce_time=BOUNCE_TIME)
 
         def on_pressed():
-            logger.info(f"GPIO Pin {BUTTON_PIN} PRESSED -> Setting GPIO {OUTPUT_PIN} HIGH")
-            if output_device_instance:
-                output_device_instance.on()
+            global last_press_time
+            now = time.time()
+            elapsed = now - last_press_time
+
+            # Enforce blockout time
+            if elapsed < BLOCKOUT_TIME:
+                remaining = BLOCKOUT_TIME - elapsed
+                logger.info(f"GPIO Pin {BUTTON_PIN} PRESSED but IGNORED (blockout active, {remaining:.1f}s remaining)")
+                return
+
+            last_press_time = now
+            logger.info(f"GPIO Pin {BUTTON_PIN} PRESSED -> Registered! Triggering {OUTPUT_DELAY}s delayed turn-on ({OUTPUT_DURATION}s duration, {BLOCKOUT_TIME}s blockout) for GPIO {OUTPUT_PIN}")
+            if main_event_loop and main_event_loop.is_running():
+                main_event_loop.call_soon_threadsafe(trigger_output_on)
 
             payload = {
                 "event": "button_press",
                 "action": "pressed",
                 "pin": BUTTON_PIN,
                 "output_pin": OUTPUT_PIN,
-                "output_state": "high",
-                "timestamp": time.time(),
+                "output_delay": OUTPUT_DELAY,
+                "output_duration": OUTPUT_DURATION,
+                "blockout_time": BLOCKOUT_TIME,
+                "timestamp": now,
                 "is_mock": is_mock_mode,
             }
             if main_event_loop and main_event_loop.is_running():
                 asyncio.run_coroutine_threadsafe(manager.broadcast(payload), main_event_loop)
 
         def on_released():
-            logger.info(f"GPIO Pin {BUTTON_PIN} RELEASED -> Setting GPIO {OUTPUT_PIN} LOW")
-            if output_device_instance:
-                output_device_instance.off()
+            logger.info(f"GPIO Pin {BUTTON_PIN} RELEASED")
 
             payload = {
                 "event": "button_release",
                 "action": "released",
                 "pin": BUTTON_PIN,
                 "output_pin": OUTPUT_PIN,
-                "output_state": "low",
                 "timestamp": time.time(),
                 "is_mock": is_mock_mode,
             }
@@ -143,7 +196,7 @@ def setup_gpio():
         button.when_pressed = on_pressed
         button.when_released = on_released
         button_instance = button
-        logger.info(f"GPIO Button listening on pin {BUTTON_PIN} (pull_up={PULL_UP}, bounce_time={BOUNCE_TIME}s, mock={is_mock_mode})")
+        logger.info(f"GPIO Button listening on pin {BUTTON_PIN} (pull_up={PULL_UP}, bounce_time={BOUNCE_TIME}s, blockout={BLOCKOUT_TIME}s, mock={is_mock_mode})")
     except Exception as e:
         logger.error(f"Failed to initialize GPIO devices: {e}")
         raise
@@ -155,9 +208,9 @@ async def lifespan(app: FastAPI):
     main_event_loop = asyncio.get_running_loop()
     setup_gpio()
     yield
+    trigger_output_off()
     if output_device_instance:
         try:
-            output_device_instance.off()
             output_device_instance.close()
         except Exception:
             pass
@@ -188,11 +241,21 @@ app.add_middleware(
 @app.get("/")
 async def root():
     """Health check and status endpoint."""
+    now = time.time()
+    elapsed = now - last_press_time
+    is_blocked = elapsed < BLOCKOUT_TIME
+    remaining_blockout = round(BLOCKOUT_TIME - elapsed, 2) if is_blocked else 0.0
+
     return {
         "status": "online",
         "service": "gpio-websocket",
         "button_pin": BUTTON_PIN,
         "output_pin": OUTPUT_PIN,
+        "output_delay_seconds": OUTPUT_DELAY,
+        "output_duration_seconds": OUTPUT_DURATION,
+        "blockout_time_seconds": BLOCKOUT_TIME,
+        "is_in_blockout": is_blocked,
+        "remaining_blockout_seconds": remaining_blockout,
         "mock_mode": is_mock_mode,
         "active_clients": len(manager.active_connections),
         "endpoints": {
@@ -211,18 +274,28 @@ class SimulatePayload(BaseModel):
 @app.post("/simulate-press")
 async def simulate_press(payload: Optional[SimulatePayload] = None):
     """Simulate a button press/release event and toggle the output pin accordingly."""
+    global last_press_time
     action = payload.action if payload and payload.action else "pressed"
     pin = payload.pin if payload and payload.pin is not None else BUTTON_PIN
 
     if action == "pressed":
-        if output_device_instance:
-            output_device_instance.on()
-        output_state = "high"
+        now = time.time()
+        elapsed = now - last_press_time
+        if elapsed < BLOCKOUT_TIME:
+            remaining = BLOCKOUT_TIME - elapsed
+            logger.info(f"Simulate press IGNORED (blockout active, {remaining:.1f}s remaining)")
+            return {
+                "status": "ignored_blockout_active",
+                "remaining_seconds": round(remaining, 2),
+                "blockout_time": BLOCKOUT_TIME,
+            }
+
+        last_press_time = now
+        trigger_output_on()
+        output_state = "scheduled_pulse"
         event_name = "button_press"
     else:
-        if output_device_instance:
-            output_device_instance.off()
-        output_state = "low"
+        output_state = "released"
         event_name = "button_release"
 
     event_data = {
@@ -230,6 +303,9 @@ async def simulate_press(payload: Optional[SimulatePayload] = None):
         "action": action,
         "pin": pin,
         "output_pin": OUTPUT_PIN,
+        "output_delay": OUTPUT_DELAY if action == "pressed" else 0,
+        "output_duration": OUTPUT_DURATION if action == "pressed" else 0,
+        "blockout_time": BLOCKOUT_TIME if action == "pressed" else 0,
         "output_state": output_state,
         "timestamp": time.time(),
         "is_mock": is_mock_mode,
@@ -268,6 +344,9 @@ async def websocket_endpoint(websocket: WebSocket):
         "message": "Connected to GPIO WebSocket Server",
         "button_pin": BUTTON_PIN,
         "output_pin": OUTPUT_PIN,
+        "output_delay": OUTPUT_DELAY,
+        "output_duration": OUTPUT_DURATION,
+        "blockout_time": BLOCKOUT_TIME,
         "timestamp": time.time(),
     })
 
