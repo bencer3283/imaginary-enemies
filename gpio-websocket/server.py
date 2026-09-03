@@ -194,7 +194,7 @@ def setup_gpio():
                 asyncio.run_coroutine_threadsafe(manager.broadcast(payload), main_event_loop)
 
         button.when_pressed = on_pressed
-        button.when_released = on_released
+        button.when_released = on_pressed
         button_instance = button
         logger.info(f"GPIO Button listening on pin {BUTTON_PIN} (pull_up={PULL_UP}, bounce_time={BOUNCE_TIME}s, blockout={BLOCKOUT_TIME}s, mock={is_mock_mode})")
     except Exception as e:
