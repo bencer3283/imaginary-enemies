@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore", module="gpiozero")
 # Configuration from environment variables
 BUTTON_PIN = int(os.getenv("GPIO_PIN", os.getenv("BUTTON_PIN", "17")))
 OUTPUT_PIN = int(os.getenv("OUTPUT_PIN", os.getenv("GPIO_OUTPUT_PIN", "27")))
-OUTPUT_DELAY = float(os.getenv("OUTPUT_DELAY", "4.0"))
+OUTPUT_DELAY = float(os.getenv("OUTPUT_DELAY", "2.8"))
 OUTPUT_DURATION = float(os.getenv("OUTPUT_DURATION", "1.0"))
 BLOCKOUT_TIME = float(os.getenv("BLOCKOUT_TIME", os.getenv("COOLDOWN_TIME", "3.0")))
 HOST = os.getenv("HOST", "0.0.0.0")
