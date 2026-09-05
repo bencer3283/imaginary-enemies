@@ -17,11 +17,17 @@ export default function Scenario() {
   useEffect(() => {
     if (!currentScenario || !overlayRef.current || !videoRef.current) return
 
+    // const timerToBlack = setTimeout(() => {
+    //   if (overlayRef.current && videoRef.current) {
+    //     overlayRef.current.style.display = 'block'
+    //     videoRef.current.style.display = 'none'
+    //   }
+    // }, 30)
     
-
-    const timer = setTimeout(() => {
+    const timerToGlitch = setTimeout(() => {
       if (overlayRef.current && videoRef.current) {
         overlayRef.current.style.display = 'block'
+        // videoRef.current.style.display = 'block'
         videoRef.current.currentTime = 0
         const playPromise = videoRef.current.play()
         if (playPromise !== undefined) {
@@ -34,7 +40,7 @@ export default function Scenario() {
         }
         videoRef.current.pause()
       }
-    }, 2000)
+    }, 30)
 
     const timerToScenario = setTimeout(() => {
       setDisplayedScenario(currentScenario)
@@ -47,8 +53,9 @@ export default function Scenario() {
     }, 4000)
 
     return () => {
-      clearTimeout(timer)
+      clearTimeout(timerToGlitch)
       clearTimeout(timerToScenario)
+      // clearTimeout(timerToBlack)
     }
   }, [currentScenario])
 

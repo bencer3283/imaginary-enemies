@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { VStack, Box, Text } from "@chakra-ui/react"
 import { useScenario } from "@/lib/use-scenario"
+import type { ScenarioItem } from "@/lib/scenarios"
 
 export default function Blocks() {
   const { currentScenario } = useScenario()
+  const [displayedCountries, setDisplayedCountries] = useState<String[] | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
@@ -19,19 +21,33 @@ export default function Blocks() {
   useEffect(() => {
     if (!currentScenario || !overlayRef.current || !videoRef.current) return
 
-    overlayRef.current.style.display = 'block'
-    videoRef.current.currentTime = 0
-    const playPromise = videoRef.current.play()
-    if (playPromise !== undefined) {
-      playPromise.catch(() => {
-        if (videoRef.current) {
-          videoRef.current.muted = true
-          videoRef.current.play().catch((e) => console.warn('Autoplay failed:', e))
-        }
-      })
-    }
+    // const timerToBlack = setTimeout(() => {
+    //   if (overlayRef.current && videoRef.current) {
+    //     overlayRef.current.style.display = 'block'
+    //     videoRef.current.style.display = 'none'
+    //   }
+    // }, 30)
 
-    const timer = setTimeout(() => {
+    const timerToGlitch = setTimeout(() => {
+      if (overlayRef.current && videoRef.current) {
+        // videoRef.current.style.display = 'block'
+        overlayRef.current.style.display = 'block'
+        videoRef.current.currentTime = 0
+        const playPromise = videoRef.current.play()
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            if (videoRef.current) {
+              videoRef.current.muted = true
+              videoRef.current.play().catch((e) => console.warn('Autoplay failed:', e))
+            }
+          })
+        }
+        setDisplayedCountries(displayCountries)
+      }
+    }, 30)
+
+    const timerToBlocks = setTimeout(() => {
+      
       if (overlayRef.current) {
         overlayRef.current.style.display = 'none'
       }
@@ -41,7 +57,9 @@ export default function Blocks() {
     }, 2000)
 
     return () => {
-      clearTimeout(timer)
+      // clearTimeout(timerToBlack)
+      clearTimeout(timerToGlitch)
+      clearTimeout(timerToBlocks)
     }
   }, [currentScenario])
 
@@ -74,22 +92,22 @@ export default function Blocks() {
       <VStack p="5vh" h="100dvh" minH="100dvh" minW="100dvw" align="stretch" gap="2vh" bg="black">
         <Box flex={1} minH={0} bg="white" display="flex" alignItems="center" justifyContent="center">
           <Text fontSize="80px" color="black" textTransform="uppercase" fontFamily="var(--font-jetbrains-mono)" fontWeight={700}>
-            {displayCountries[0] || 'Mexico'}
+            {displayedCountries?.[0] ?? 'Mexico'}
           </Text>
         </Box>
         <Box flex={1} minH={0} border="3px solid" borderColor="white" display="flex" alignItems="center" justifyContent="center">
           <Text textAlign={'center'} maxWidth="50vw" fontSize="80px" color="white" textTransform="uppercase" fontFamily="var(--font-jetbrains-mono)" fontWeight={700}>
-            {displayCountries[1] || ''}
+            {displayedCountries?.[1] || ''}
           </Text>
         </Box>
         <Box flex={1} minH={0} border="3px solid" borderColor="white" display="flex" alignItems="center" justifyContent="center">
           <Text textAlign={'center'} maxWidth="50vw" fontSize="80px" color="white" textTransform="uppercase" fontFamily="var(--font-jetbrains-mono)" fontWeight={700}>
-            {displayCountries[2] || ''}
+            {displayedCountries?.[2] || ''}
           </Text>
         </Box>
         <Box flex={1} minH={0} border="3px solid" borderColor="white" display="flex" alignItems="center" justifyContent="center">
           <Text textAlign={'center'} maxWidth="50vw" fontSize="80px" color="white" textTransform="uppercase" fontFamily="var(--font-jetbrains-mono)" fontWeight={700}>
-            {displayCountries[3] || ''}
+            {displayedCountries?.[3] || ''}
           </Text>
         </Box>
       </VStack>
